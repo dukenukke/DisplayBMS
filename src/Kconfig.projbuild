@@ -86,6 +86,8 @@ menu "DisplayBMS"
                 bool "Mock generator (no BMS needed)"
         endchoice
 
+        comment "Receive-only: the firmware never transmits to the BMS"
+
         config DBMS_BMS_UART_NUM
             int "UART port"
             range 1 2
@@ -93,64 +95,46 @@ menu "DisplayBMS"
             help
                 UART0 is the USB console (CH340 on GPIO1/3) and cannot be used.
 
-        config DBMS_BMS_TX_GPIO
-            int "TX GPIO (to BMS RX)"
+        config DBMS_BMS_RX_GPIO
+            int "RX GPIO (from RS485 transceiver RO)"
+            range 0 39
+            default 35
+            help
+                CYD connector P3: GPIO21 (backlight!), GPIO22, GPIO35, GND.
+                GPIO35 is input-only, which suits a receive-only link. The
+                transceiver RO output must be 3.3 V logic.
+
+        config DBMS_BMS_RTS_GPIO
+            int "RTS GPIO (to transceiver DE and /RE)"
             range 0 33
             default 27
             help
-                CYD connector CN1: 3.3V, GPIO27, GPIO22, GND.
-
-        config DBMS_BMS_RX_GPIO
-            int "RX GPIO (from BMS TX)"
-            range 0 39
-            default 22
-            help
-                GPIO22 has an internal pull-up. GPIO35 works too but has no
-                pull-up and will pick up noise with the cable disconnected.
+                CYD connector CN1: 3.3V, GPIO27, GPIO22, GND. Held low for the
+                whole run, which keeps the transceiver in receive mode with its
+                driver disabled.
 
         config DBMS_BMS_BAUD
             int "Baud rate"
             default 115200
 
-        config DBMS_BMS_MODBUS_ADDR
-            int "BMS Modbus slave address (DIP switches)"
-            range 1 15
-            default 1
+        config DBMS_BMS_FRAME_PERIOD_S
+            int "Expected interval between live-data frames, s"
+            range 1 120
+            default 15
             help
-                Address 0 puts the BMS in Modbus master mode on UART2 and it will
-                not answer requests.
+                Protocol 015 broadcasts its own frames about every 15 s
+                (phinix logs). Check with the sniffer on real hardware.
 
-        config DBMS_BMS_POLL_PERIOD_MS
-            int "Poll period, ms"
-            range 200 60000
-            default 1000
-
-        config DBMS_BMS_RESP_TIMEOUT_MS
-            int "Response timeout, ms"
-            range 50 2000
-            default 300
-
-        config DBMS_BMS_RETRIES
-            int "Retries per request"
-            range 0 5
-            default 2
-
-        config DBMS_BMS_LINK_LOST_POLLS
-            int "Failed polls before 'no link'"
-            range 1 20
-            default 3
+        config DBMS_BMS_STALE_AFTER_S
+            int "Data shown as stale after, s without a valid frame"
+            range 2 600
+            default 45
 
         config DBMS_SNIFFER
             bool "Sniffer: hex-dump raw UART traffic to the log"
             default n
-
-        config DBMS_SNIFFER_PASSIVE
-            bool "Sniffer: listen only, never transmit"
-            depends on DBMS_SNIFFER
-            default y
             help
-                Use first on a new installation to see what the BMS port sends
-                on its own before sending any request.
+                BLE PIN and password bytes of the device-info frame are masked.
 
     endmenu
 
