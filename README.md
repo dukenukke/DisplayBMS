@@ -40,7 +40,7 @@ GPIO21 на роз'ємі P3 — це підсвітка дисплея.
 ## Документація
 
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): протокол, регістри, джерела
-- [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md): що треба перевірити на залозі
+- [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md): що треба перевірити на залізі
 
 ## Ліцензія
 
