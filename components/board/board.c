@@ -19,14 +19,23 @@
 #include "esp_lcd_panel_st7789.h"
 #endif
 
-/* LCD: values verified on this board in the reference project (fungen). */
+/* LCD: bus and orientation as in the reference project (fungen); colour settings from Kconfig. */
 #define LCD_PIXEL_CLOCK_HZ      (CONFIG_DBMS_LCD_SPI_CLOCK_MHZ * 1000 * 1000)
 #define LCD_CMD_BITS            8
 #define LCD_PARAM_BITS          8
 #define LCD_SPI_MODE            0
 #define LCD_TRANS_QUEUE_DEPTH   10
 #define LCD_BITS_PER_PIXEL      16
+#if CONFIG_DBMS_LCD_INVERT_COLORS
 #define LCD_INVERT_COLORS       true
+#else
+#define LCD_INVERT_COLORS       false
+#endif
+#if CONFIG_DBMS_LCD_BGR_ORDER
+#define LCD_RGB_ORDER           LCD_RGB_ELEMENT_ORDER_BGR
+#else
+#define LCD_RGB_ORDER           LCD_RGB_ELEMENT_ORDER_RGB
+#endif
 #define LCD_MIRROR_X            false
 #define LCD_MIRROR_Y            true
 #define LCD_SWAP_XY             false
@@ -111,7 +120,7 @@ static esp_err_t init_lcd(esp_lcd_panel_io_handle_t *out_io, esp_lcd_panel_handl
 
     const esp_lcd_panel_dev_config_t panel_cfg = {
         .reset_gpio_num = BOARD_LCD_PIN_RST,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
+        .rgb_ele_order = LCD_RGB_ORDER,
         .bits_per_pixel = LCD_BITS_PER_PIXEL,
     };
 #if CONFIG_DBMS_LCD_ILI9341

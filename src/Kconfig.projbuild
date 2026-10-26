@@ -15,6 +15,18 @@ menu "DisplayBMS"
                 bool "ST7789"
         endchoice
 
+        config DBMS_LCD_INVERT_COLORS
+            bool "Invert colours"
+            default n
+            help
+                Verified on hardware: off (white shows black when on).
+
+        config DBMS_LCD_BGR_ORDER
+            bool "BGR element order"
+            default n
+            help
+                Verified on hardware: RGB (red and blue swap when BGR is set).
+
         config DBMS_LCD_SPI_CLOCK_MHZ
             int "LCD SPI clock, MHz"
             range 10 40
