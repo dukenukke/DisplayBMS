@@ -38,6 +38,8 @@ CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
 CONFIG_LV_FONT_MONTSERRAT_28=y
 CONFIG_LV_FONT_DEFAULT_MONTSERRAT_14=y
+# 1-bpp pixel font, used on the test screen to compare with anti-aliased text
+CONFIG_LV_FONT_UNSCII_16=y
 
 # --- LVGL widgets: only what the UI uses ---
 CONFIG_LV_USE_ARC=y

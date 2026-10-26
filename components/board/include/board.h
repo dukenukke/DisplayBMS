@@ -27,8 +27,14 @@
 #define BOARD_LCD_H_RES         320
 #define BOARD_LCD_V_RES         240
 
+/* Gamma curves selectable with the Gamma Set command (ILI9341 and ST7789: 0x01, 0x02, 0x04, 0x08) */
+#define BOARD_LCD_GAMMA_CURVES  4
+
 /**
  * Bring up SPI buses, LCD panel, touch, backlight and the LVGL port.
  * On success *out_disp is the LVGL display.
  */
 esp_err_t board_init(lv_display_t **out_disp);
+
+/** Select gamma curve 0..BOARD_LCD_GAMMA_CURVES-1. LVGL task only (shares the LCD bus). */
+esp_err_t board_lcd_set_gamma_curve(int curve);

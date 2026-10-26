@@ -19,6 +19,9 @@
 #define UI_SWATCH_H         22
 #define UI_BUTTON_H         32
 #define UI_STATUS_PERIOD_MS 250
+#define UI_GREY_STEPS       8
+#define UI_GREY_W           36
+#define UI_GREY_H           18
 
 static const char *TAG = "ui";
 
@@ -61,6 +64,61 @@ static void recalibrate_cb(lv_event_t *e)
     esp_restart();
 }
 
+static int s_gamma_curve;   /* panel init selects curve 1 (index 0) */
+
+static void gamma_cb(lv_event_t *e)
+{
+    lv_obj_t *label = lv_event_get_user_data(e);
+    int next = (s_gamma_curve + 1) % BOARD_LCD_GAMMA_CURVES;
+    esp_err_t err = board_lcd_set_gamma_curve(next);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "gamma: %s", esp_err_to_name(err));
+        return;
+    }
+    s_gamma_curve = next;
+    lv_label_set_text_fmt(label, "Gamma %d", s_gamma_curve + 1);
+    /* The panel changes in place; force a full redraw anyway so any tearing clears. */
+    lv_obj_invalidate(lv_screen_active());
+}
+
+static lv_obj_t *add_row(lv_obj_t *parent)
+{
+    lv_obj_t *row = lv_obj_create(parent);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    return row;
+}
+
+/* Eight grey steps from black to white: shows how the panel renders intermediate levels. */
+static void add_grey_ramp(lv_obj_t *parent)
+{
+    lv_obj_t *row = add_row(parent);
+    for (int i = 0; i < UI_GREY_STEPS; ++i) {
+        uint8_t v = (uint8_t)(i * 255 / (UI_GREY_STEPS - 1));
+        lv_obj_t *box = lv_obj_create(row);
+        lv_obj_remove_style_all(box);
+        lv_obj_set_size(box, UI_GREY_W, UI_GREY_H);
+        lv_obj_set_style_bg_color(box, lv_color_make(v, v, v), 0);
+        lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
+        lv_obj_remove_flag(box, LV_OBJ_FLAG_CLICKABLE);
+    }
+}
+
+static lv_obj_t *add_button(lv_obj_t *parent, const char *text, lv_event_cb_t cb, bool label_as_data)
+{
+    lv_obj_t *btn = lv_button_create(parent);
+    lv_obj_set_height(btn, UI_BUTTON_H);
+    lv_obj_t *label = lv_label_create(btn);
+    lv_label_set_text(label, text);
+    lv_obj_center(label);
+    lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, label_as_data ? label : NULL);
+    return btn;
+}
+
 static void add_swatch(lv_obj_t *parent, lv_color_t color, const char *name)
 {
     lv_obj_t *box = lv_obj_create(parent);
@@ -83,27 +141,35 @@ esp_err_t ui_init(lv_display_t *disp)
     lv_obj_set_style_pad_all(scr, UI_PAD, 0);
     lv_obj_set_style_pad_row(scr, UI_ROW_GAP, 0);
     lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
-    lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    /* More content than one screen: scroll vertically. */
+    lv_obj_set_scroll_dir(scr, LV_DIR_VER);
     lv_obj_add_event_cb(scr, screen_pressing_cb, LV_EVENT_PRESSING, NULL);
 
     lv_obj_t *title = lv_label_create(scr);
     lv_label_set_text(title, "DisplayBMS hardware test");
     lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
 
-    lv_obj_t *swatches = lv_obj_create(scr);
-    lv_obj_remove_style_all(swatches);
-    lv_obj_set_size(swatches, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(swatches, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(swatches, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_t *swatches = add_row(scr);
     add_swatch(swatches, lv_color_hex(0xFF0000), "RED");
     add_swatch(swatches, lv_color_hex(0x00FF00), "GREEN");
     add_swatch(swatches, lv_color_hex(0x0000FF), "BLUE");
     add_swatch(swatches, lv_color_white(), "WHITE");
 
+    add_grey_ramp(scr);
+
+    lv_obj_t *aa = lv_label_create(scr);
+    lv_label_set_text(aa, "Montserrat 14: Voltage 3.325 V");
+    lv_obj_t *no_aa = lv_label_create(scr);
+    lv_label_set_text(no_aa, "Unscii 16 (no AA): 3.325 V");
+    lv_obj_set_style_text_font(no_aa, &lv_font_unscii_16, 0);
+
     lv_obj_t *big = lv_label_create(scr);
     lv_label_set_text(big, "52.34 V  -12.5 A");
     lv_obj_set_style_text_font(big, &lv_font_montserrat_28, 0);
+
+    lv_obj_t *buttons = add_row(scr);
+    add_button(buttons, "Gamma 1", gamma_cb, true);
+    add_button(buttons, "Recalibrate touch", recalibrate_cb, false);
 
     lv_obj_t *bl_label = lv_label_create(scr);
     lv_label_set_text(bl_label, "Brightness (saved on release)");
@@ -118,13 +184,6 @@ esp_err_t ui_init(lv_display_t *disp)
     s_status_label = lv_label_create(scr);
     s_touch_label = lv_label_create(scr);
     lv_label_set_text(s_touch_label, "Touch: press anywhere");
-
-    lv_obj_t *btn = lv_button_create(scr);
-    lv_obj_set_height(btn, UI_BUTTON_H);
-    lv_obj_add_event_cb(btn, recalibrate_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *btn_label = lv_label_create(btn);
-    lv_label_set_text(btn_label, "Recalibrate touch");
-    lv_obj_center(btn_label);
 
     status_timer_cb(NULL);
     lv_timer_create(status_timer_cb, UI_STATUS_PERIOD_MS, NULL);

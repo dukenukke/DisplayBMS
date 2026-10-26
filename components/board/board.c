@@ -4,6 +4,7 @@
 
 #include "driver/spi_master.h"
 #include "esp_check.h"
+#include "esp_lcd_panel_commands.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_touch_xpt2046.h"
@@ -60,6 +61,7 @@
 
 static const char *TAG = "board";
 
+static esp_lcd_panel_io_handle_t s_lcd_io;
 static int64_t s_last_touch_us;
 static bool s_swallow_press;
 
@@ -180,6 +182,7 @@ esp_err_t board_init(lv_display_t **out_disp)
     esp_lcd_panel_io_handle_t lcd_io;
     esp_lcd_panel_handle_t panel;
     ESP_RETURN_ON_ERROR(init_lcd(&lcd_io, &panel), TAG, "LCD");
+    s_lcd_io = lcd_io;
 
     const lvgl_port_cfg_t port_cfg = {
         .task_priority = LVGL_TASK_PRIORITY,
@@ -231,4 +234,13 @@ esp_err_t board_init(lv_display_t **out_disp)
     *out_disp = disp;
     ESP_LOGI(TAG, "display %dx%d ready", BOARD_LCD_H_RES, BOARD_LCD_V_RES);
     return ESP_OK;
+}
+
+esp_err_t board_lcd_set_gamma_curve(int curve)
+{
+    ESP_RETURN_ON_FALSE(s_lcd_io, ESP_ERR_INVALID_STATE, TAG, "LCD not ready");
+    ESP_RETURN_ON_FALSE(curve >= 0 && curve < BOARD_LCD_GAMMA_CURVES, ESP_ERR_INVALID_ARG, TAG, "curve");
+    const uint8_t param = (uint8_t)(1u << curve);
+    ESP_LOGI(TAG, "gamma curve %d", curve + 1);
+    return esp_lcd_panel_io_tx_param(s_lcd_io, LCD_CMD_GAMSET, &param, sizeof(param));
 }
