@@ -90,13 +90,26 @@ menu "DisplayBMS"
 
         choice DBMS_DATA_SOURCE
             prompt "Data source"
-            default DBMS_SOURCE_BMS
+            default DBMS_SOURCE_MOCK
+            help
+                Mock is the default until the frame parser (stage 5) is done.
 
             config DBMS_SOURCE_BMS
                 bool "Real BMS over UART"
             config DBMS_SOURCE_MOCK
                 bool "Mock generator (no BMS needed)"
         endchoice
+
+        config DBMS_MOCK_PERIOD_MS
+            int "Mock update period, ms"
+            depends on DBMS_SOURCE_MOCK
+            range 200 30000
+            default 1000
+
+        config DBMS_MOCK_LINK_DROPS
+            bool "Mock simulates link loss (60 s every 4 min)"
+            depends on DBMS_SOURCE_MOCK
+            default y
 
         comment "Receive-only: the firmware never transmits to the BMS"
 

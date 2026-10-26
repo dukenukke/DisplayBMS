@@ -5,6 +5,7 @@
 #include "sdkconfig.h"
 
 #include "board.h"
+#include "bms_mock.h"
 #include "bms_model.h"
 #include "bms_transport.h"
 #include "touch_cal.h"
@@ -38,8 +39,13 @@ void app_main(void)
         lvgl_port_unlock();
     }
 
+#if CONFIG_DBMS_SOURCE_MOCK
+    esp_err_t err = bms_mock_start();
+#else
     esp_err_t err = bms_transport_init();
+#endif
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "bms_transport_init: %s", esp_err_to_name(err));
+        /* Not fatal: the UI keeps running and shows "NO DATA". */
+        ESP_LOGE(TAG, "data source: %s", esp_err_to_name(err));
     }
 }
