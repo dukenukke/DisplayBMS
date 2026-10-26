@@ -138,6 +138,11 @@ esp_err_t ui_init(lv_display_t *disp)
 {
     if (!disp) return ESP_ERR_INVALID_ARG;
 
+    /* Dark default theme with the 8x16 pixel font inherited by every widget. */
+    lv_theme_t *theme = lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_TEAL),
+                                              lv_palette_main(LV_PALETTE_AMBER), true, UI_FONT_TEXT);
+    lv_display_set_theme(disp, theme);
+
     lv_obj_t *scr = lv_obj_create(NULL);
     lv_obj_set_style_pad_all(scr, UI_PAD, 0);
     lv_obj_set_style_pad_row(scr, UI_ROW_GAP, 0);
