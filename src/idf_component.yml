@@ -1,0 +1,8 @@
+## Exact resolved versions are pinned in dependencies.lock (committed).
+dependencies:
+  idf: ">=6.1.0"
+  lvgl/lvgl: ">=9.5.0,<9.6.0"   # 9.5.x = version verified in the reference project
+  espressif/esp_lvgl_port: "^2.7.2"
+  espressif/esp_lcd_ili9341: "^2.1.0"
+  espressif/esp_lcd_touch: "^1.2.1"
+  atanisoft/esp_lcd_touch_xpt2046: "^1.0.6"

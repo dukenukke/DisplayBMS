@@ -1,0 +1,186 @@
+menu "DisplayBMS"
+
+    menu "Display"
+
+        choice DBMS_LCD_CONTROLLER
+            prompt "LCD controller"
+            default DBMS_LCD_ILI9341
+            help
+                Most ESP32-2432S028R boards use ILI9341. The two-USB revision is
+                reported to use ST7789 (not verified on hardware in this project).
+
+            config DBMS_LCD_ILI9341
+                bool "ILI9341"
+            config DBMS_LCD_ST7789
+                bool "ST7789"
+        endchoice
+
+        config DBMS_LCD_SPI_CLOCK_MHZ
+            int "LCD SPI clock, MHz"
+            range 10 40
+            default 20
+            help
+                20 MHz is verified on hardware in the reference project.
+
+    endmenu
+
+    menu "Backlight"
+
+        config DBMS_BL_PWM_FREQ_HZ
+            int "Backlight PWM frequency, Hz"
+            range 100 40000
+            default 5000
+
+        config DBMS_BL_DEFAULT_PCT
+            int "Default brightness, %"
+            range 5 100
+            default 80
+            help
+                Used until the user stores a brightness from the UI (saved in NVS).
+
+        config DBMS_BL_MIN_PCT
+            int "Minimum brightness, %"
+            range 1 50
+            default 5
+
+        config DBMS_BL_DIM_TIMEOUT_S
+            int "Dim after inactivity, s (0 = never)"
+            range 0 3600
+            default 60
+
+        config DBMS_BL_DIM_PCT
+            int "Dimmed brightness, %"
+            range 0 100
+            default 10
+
+        config DBMS_LDR_ENABLE
+            bool "Ambient light sensor (LDR) adjusts brightness"
+            default y
+            help
+                CYD has a photoresistor on GPIO34 (ADC1). The raw range below
+                must be checked on hardware (see the sensor log in debug mode).
+
+        config DBMS_LDR_RAW_BRIGHT
+            int "LDR raw ADC value in bright light"
+            depends on DBMS_LDR_ENABLE
+            range 0 4095
+            default 0
+
+        config DBMS_LDR_RAW_DARK
+            int "LDR raw ADC value in darkness"
+            depends on DBMS_LDR_ENABLE
+            range 0 4095
+            default 1000
+
+    endmenu
+
+    menu "BMS link"
+
+        choice DBMS_DATA_SOURCE
+            prompt "Data source"
+            default DBMS_SOURCE_BMS
+
+            config DBMS_SOURCE_BMS
+                bool "Real BMS over UART"
+            config DBMS_SOURCE_MOCK
+                bool "Mock generator (no BMS needed)"
+        endchoice
+
+        config DBMS_BMS_UART_NUM
+            int "UART port"
+            range 1 2
+            default 2
+            help
+                UART0 is the USB console (CH340 on GPIO1/3) and cannot be used.
+
+        config DBMS_BMS_TX_GPIO
+            int "TX GPIO (to BMS RX)"
+            range 0 33
+            default 27
+            help
+                CYD connector CN1: 3.3V, GPIO27, GPIO22, GND.
+
+        config DBMS_BMS_RX_GPIO
+            int "RX GPIO (from BMS TX)"
+            range 0 39
+            default 22
+            help
+                GPIO22 has an internal pull-up. GPIO35 works too but has no
+                pull-up and will pick up noise with the cable disconnected.
+
+        config DBMS_BMS_BAUD
+            int "Baud rate"
+            default 115200
+
+        config DBMS_BMS_MODBUS_ADDR
+            int "BMS Modbus slave address (DIP switches)"
+            range 1 15
+            default 1
+            help
+                Address 0 puts the BMS in Modbus master mode on UART2 and it will
+                not answer requests.
+
+        config DBMS_BMS_POLL_PERIOD_MS
+            int "Poll period, ms"
+            range 200 60000
+            default 1000
+
+        config DBMS_BMS_RESP_TIMEOUT_MS
+            int "Response timeout, ms"
+            range 50 2000
+            default 300
+
+        config DBMS_BMS_RETRIES
+            int "Retries per request"
+            range 0 5
+            default 2
+
+        config DBMS_BMS_LINK_LOST_POLLS
+            int "Failed polls before 'no link'"
+            range 1 20
+            default 3
+
+        config DBMS_SNIFFER
+            bool "Sniffer: hex-dump raw UART traffic to the log"
+            default n
+
+        config DBMS_SNIFFER_PASSIVE
+            bool "Sniffer: listen only, never transmit"
+            depends on DBMS_SNIFFER
+            default y
+            help
+                Use first on a new installation to see what the BMS port sends
+                on its own before sending any request.
+
+    endmenu
+
+    menu "UI thresholds"
+
+        config DBMS_UI_REFRESH_MS
+            int "UI refresh period, ms"
+            range 100 5000
+            default 500
+
+        config DBMS_TH_DELTA_WARN_MV
+            int "Cell delta warning, mV"
+            default 20
+
+        config DBMS_TH_DELTA_CRIT_MV
+            int "Cell delta critical, mV"
+            default 50
+
+        config DBMS_TH_TEMP_WARN_C
+            int "Temperature warning, C"
+            default 45
+
+        config DBMS_TH_TEMP_CRIT_C
+            int "Temperature critical, C"
+            default 55
+
+        config DBMS_TH_TEMP_COLD_C
+            int "Temperature cold, C"
+            default 5
+
+    endmenu
+
+endmenu

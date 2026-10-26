@@ -1,0 +1,109 @@
+# Протокол JK-PB (Modbus RTU): що відомо і звідки
+
+Цей файл — єдине джерело зсувів і форматів для `components/bms_protocol`.
+Кожне поле в коді посилається на рядок звідси, а звідси — на джерело.
+Позначка **[перевірено]** означає, що значення підтверджене реальним логом, а не лише таблицею.
+
+## Джерела
+
+| # | Документ | Що містить |
+|---|---|---|
+| S1 | [phinix-org/Multiple-JK-BMS-by-Modbus-RS485, README.md](https://github.com/phinix-org/Multiple-JK-BMS-by-Modbus-RS485) (Apache-2.0) | Карта регістрів «Jikong BMS RS485 Modbus Universal Protocol V1.1», поведінка UART1/UART2, логи `docs/logs/*.log`, ESPHome-конфіги `include/backup/sensors/*.yaml` |
+| S2 | `D:\Projects\Solar\DOC\1450064500.pdf` | Офіційний JK «BMS RS485 Modbus V1.0» (китайською): формат кадру, приклади FC03 / FC10, та сама карта регістрів |
+| S3 | `D:\Projects\Solar\DOC\Jikong-BMS-RS485-Communication.example.pdf` | Приклад **іншого** протоколу: старий JK «GPS protocol» з кадром `4E 57 …` (серія JK-B). Це не Modbus |
+
+## Фізичний рівень і кадр
+
+- 115200 бод, 8N1 (S1, S2). Варіант протоколу 013 працює на 9600 (S1).
+- Modbus RTU. JK підтримує лише FC **0x03** (читання) і **0x10** (запис кількох регістрів) (S1).
+  **Прошивка використовує тільки 0x03.** Коду запису немає.
+- Запит FC03: `addr 03 regHi regLo cntHi cntLo crcLo crcHi`.
+  Відповідь: `addr 03 byteCount data… crcLo crcHi`.
+  Виняток: `addr (fc|0x80) code crc`, коди 01–04 (S2).
+- CRC-16/MODBUS, на лінії іде молодшим байтом уперед. Тестові вектори **[перевірено]** нашою `crc16_modbus()`:
+  - `01 03 00 05 00 02` → `D4 0A` (S2)
+  - `01 03 04 11 22 33 44` → `4B C6` (S2)
+  - `01 10 16 1E 00 01 02 00 00` → `D2 2F` (S1, лог)
+
+## Адресація і порядок байтів
+
+- Блоки: `0x1000` налаштування (RW), `0x1200` живі дані (R), `0x1400` інформація про пристрій,
+  `0x1600` команди (W, **заборонено**). У таблицях S1/S2 зсуви вказані **в байтах** від початку блоку.
+- Кожен 16-бітний регістр передається big-endian. UINT32/INT32 займає два регістри, старше слово йде першим.
+  **[перевірено]**: читання `0x1000` у логу S1 повертає `00 00 0D AC` = 3500 мВ (VolSmartSleep).
+  Той самий кадр JK `55 AA EB 90 01` містить `AC 0D 00 00` (little-endian).
+- Пара UINT8 в одному регістрі: перше поле в таблиці — це **старший** байт. Так у бітових масках ESPHome S1:
+  BalanSta `0xFF00` / SOC `0x00FF`, MaxCellNbr `0xFF00` / MinCellNbr `0x00FF`,
+  SOH `0xFF00` / Precharge `0x00FF`, Charge `0xFF00` / Discharge `0x00FF`.
+- **Неоднозначність:** невідомо, чи адреса регістра для старту *всередині* блоку дорівнює `база + зсув_у_байтах`
+  (на це вказують запис у `0x161C/0x161E/0x1620` у S1 і приклад `0x14E4`), чи `база + зсув/2`.
+  **Рішення:** кожне читання починається з **бази блоку**. Тоді обидва трактування дають ідентичну відповідь.
+
+## Запити прошивки
+
+| Блок | Запит | Байтів | Покриває зсуви | Статус |
+|---|---|---|---|---|
+| 0x1200 | `addr 03 12 00 00 6A` | 212 | 0x00–0xD3 | **[перевірено]**: так читає робоча конфігурація S1 (`register_count: 0x6A`, `response_size: 0xD4`) |
+| 0x1000 | `addr 03 10 00 00 40` | 128 | 0x00–0x7F | **[перевірено]**: відповідь `00 03 80 …` у лозі S1 |
+| 0x1400 | `addr 03 14 00 00 14` | 40 | 0x00–0x27 | перевірити. Зупиняємось до 0x28, щоб **не читати BLE PIN (0x38) і пароль (0x70)** |
+
+## Поля блоку 0x1200 (живі дані), S1
+
+| Зсув | Тип | Поле | Одиниці |
+|---|---|---|---|
+| 0x00 + 2·i | UINT16 | CellVol[i], i = 0…31 | мВ |
+| 0x40 | UINT32 | CellSta: біт n = комірка присутня | — |
+| 0x44 | UINT16 | CellVolAve | мВ |
+| 0x46 | UINT16 | CellVdifMax (дельта) | мВ |
+| 0x48 | UINT8 ×2 | MaxVolCellNbr (hi) / MinVolCellNbr (lo) | номер від 0 (перевірити) |
+| 0x4A + 2·i | UINT16 | CellWireRes[i] | мОм |
+| 0x8A | INT16 | TempMos | 0.1 °C |
+| 0x8C | UINT32 | CellWireResSta: біт n = тривога лінії балансування | — |
+| 0x90 | UINT32 | BatVol | мВ |
+| 0x94 | UINT32 | BatWatt | мВт |
+| 0x98 | INT32 | BatCurrent (знак: + заряд, перевірити) | мА |
+| 0x9C / 0x9E | INT16 | TempBat1 / TempBat2 | 0.1 °C |
+| 0xA0 | UINT32 | Бітові тривоги (див. нижче) | — |
+| 0xA4 | INT16 | BalanCurrent | мА |
+| 0xA6 | UINT8 ×2 | BalanSta (hi: 0 off, 1 charge, 2 discharge) / SOC (lo) | % |
+| 0xA8 | INT32 | SOCCapRemain | мА·год |
+| 0xAC | UINT32 | SOCFullChargeCap | мА·год |
+| 0xB0 | UINT32 | SOCCycleCount | — |
+| 0xB4 | UINT32 | SOCCycleCap | мА·год |
+| 0xB8 | UINT8 ×2 | SOH (hi) / Precharge (lo) | % / 0-1 |
+| 0xBA | UINT16 | UserAlarm | — |
+| 0xBC | UINT32 | RunTime | с |
+| 0xC0 | UINT8 ×2 | Charge MOS (hi) / Discharge MOS (lo) | 1 = увімкнено |
+| 0xC2 | UINT16 | UserAlarm2 | — |
+| 0xD0 | UINT8 | Наявність датчиків: BIT0 MOS, BIT1–5 TempBat1–5 (1 = норма) | перевірити |
+
+Поза першим читанням лишаються TempBat3–5 (0xF8/0xFA/0xFC) і HeatCurrent (0xE6). Відкрите питання: як їх читати з огляду на адресацію.
+
+### Тривоги 0xA0 (S1, біт = 1 → активна)
+
+0 WireRes · 1 MOS over-temp · 2 Cell count mismatch · 3 Current sensor error · 4 Cell OVP · 5 Battery OVP ·
+6 Charge OCP · 7 Charge SCP · 8 Charge OTP · 9 Charge UTP · 10 Internal comm error · 11 Cell UVP ·
+12 Battery UVP · 13 Discharge OCP · 14 Discharge SCP · 15 Discharge OTP · 16 Charge MOS fault ·
+17 Discharge MOS fault · 18 GPS disconnected · 19 Change password · 20 Discharge start failed ·
+21 Battery over-temp alarm. Далі в S1 ідуть «Temperature sensor anomaly» і «Parallel module failure» без
+номерів бітів. Вважаємо їх бітами 22 і 23 **(не перевірено)**. Невідомі біти показуємо як `Unknown bit N`.
+
+## Поведінка портів (S1)
+
+- **UART2:** якщо адреса за DIP = 0x00, BMS стає **master** (протокол 015). Кожні 15 с вона шле свій кадр
+  `55 AA EB 90 02 …` і опитує slave-пристрої записами FC10. З адресою 1–15 BMS працює як slave (протокол 001).
+- **UART1 (RJ45 RS485-1):** завжди slave. Протокол обирається в застосунку JK, серед варіантів є
+  000 «4G-GPS Remote module Common protocol V4.2», 001 «JK BMS RS485 Modbus V1.0», 005 Pylon тощо.
+- **Не відомо**, до якого UART підключений роз'єм GPS (P8) на PB1A16S10P. Визначаємо через sniffer (етап 4).
+  Якщо порт GPS працює за протоколом 000, там може бути кадр `4E 57` (S3), а не Modbus.
+
+## Блок 0x1400 (S1, лог `LiIon_-.log`)
+
+| Зсув | Тип | Поле | Приклад з логу |
+|---|---|---|---|
+| 0x00 | ASCII 16 | Model | `JK_PB1A16S15P` |
+| 0x10 | ASCII 8 | HW version | `15A` |
+| 0x18 | ASCII 8 | SW version | `15.30` |
+| 0x20 | UINT32 | Uptime total | с |
+| 0x24 | UINT32 | Power-on count | — |
+| 0x28 / 0x38 / 0x50 / 0x70 | ASCII | BLE name / **BLE PIN** / Serial / **Password** (неофіційно) | не читаємо 0x38 і 0x70 |
