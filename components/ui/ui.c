@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "touch_cal.h"
+#include "ui_fonts.h"
 
 /*
  * Stage 2 hardware test screen: colour order, fonts, touch mapping, brightness
@@ -147,7 +148,7 @@ esp_err_t ui_init(lv_display_t *disp)
 
     lv_obj_t *title = lv_label_create(scr);
     lv_label_set_text(title, "DisplayBMS hardware test");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(title, lv_palette_main(LV_PALETTE_TEAL), 0);
 
     lv_obj_t *swatches = add_row(scr);
     add_swatch(swatches, lv_color_hex(0xFF0000), "RED");
@@ -157,15 +158,26 @@ esp_err_t ui_init(lv_display_t *disp)
 
     add_grey_ramp(scr);
 
-    lv_obj_t *aa = lv_label_create(scr);
-    lv_label_set_text(aa, "Montserrat 14: Voltage 3.325 V");
-    lv_obj_t *no_aa = lv_label_create(scr);
-    lv_label_set_text(no_aa, "Unscii 16 (no AA): 3.325 V");
-    lv_obj_set_style_text_font(no_aa, &lv_font_unscii_16, 0);
+    lv_obj_t *small = lv_label_create(scr);
+    lv_label_set_text(small, "Unscii 8: cell 16  3.325 V  delta 12 mV");
+    lv_obj_set_style_text_font(small, UI_FONT_SMALL, 0);
+
+    /* Two candidates for body text: compare and choose. */
+    lv_obj_t *text_tall = lv_label_create(scr);
+    lv_label_set_text(text_tall, "A 8x16: T1 24.5\xC2\xB0" "C  Cell 3.325V  OK");
+    lv_obj_set_style_text_font(text_tall, &ui_font_unscii_16, 0);
+
+    lv_obj_t *text_wide = lv_label_create(scr);
+    lv_label_set_text(text_wide, "B 16x16: Cell 3.325V");
+    lv_obj_set_style_text_font(text_wide, &lv_font_unscii_16, 0);
 
     lv_obj_t *big = lv_label_create(scr);
-    lv_label_set_text(big, "52.34 V  -12.5 A");
-    lv_obj_set_style_text_font(big, &lv_font_montserrat_28, 0);
+    lv_label_set_text(big, "52.34V -12.5A");
+    lv_obj_set_style_text_font(big, UI_FONT_LARGE, 0);
+
+    lv_obj_t *big_pct = lv_label_create(scr);
+    lv_label_set_text(big_pct, "SOC 87% 24.5\xC2\xB0" "C");
+    lv_obj_set_style_text_font(big_pct, UI_FONT_LARGE, 0);
 
     lv_obj_t *buttons = add_row(scr);
     add_button(buttons, "Gamma 1", gamma_cb, true);

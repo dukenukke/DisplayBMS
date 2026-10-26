@@ -34,12 +34,15 @@ CONFIG_LV_USE_LOG=n
 CONFIG_LV_USE_SYSMON=n
 
 # --- LVGL fonts (Latin only, English UI) ---
+# This panel renders anti-aliased grey edges as speckles (checked on hardware),
+# so the UI uses the 1-bpp Unscii pixel font. Montserrat stays for comparison.
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
 CONFIG_LV_FONT_MONTSERRAT_28=y
-CONFIG_LV_FONT_DEFAULT_MONTSERRAT_14=y
-# 1-bpp pixel font, used on the test screen to compare with anti-aliased text
+CONFIG_LV_FONT_UNSCII_8=y
 CONFIG_LV_FONT_UNSCII_16=y
+CONFIG_LV_FONT_DEFAULT_UNSCII_16=y
+# The UI sets its own fonts (components/ui/include/ui_fonts.h) on every screen.
 
 # --- LVGL widgets: only what the UI uses ---
 CONFIG_LV_USE_ARC=y
