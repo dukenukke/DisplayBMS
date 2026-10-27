@@ -8,9 +8,11 @@
 #define OV_ARC_START_DEG    135
 #define OV_ARC_END_DEG      45
 #define OV_RIGHT_X          132
-#define OV_ROW_Y0           124
-#define OV_ROW_STEP         20
-#define OV_ROW_GAP          5
+#define OV_ROW_Y0           122
+#define OV_ROW_STEP         18
+#define OV_COLS             3
+#define OV_COL_STEP         ((320 - 2 * UI_PAD) / OV_COLS)
+#define OV_VALUE_DX         48      /* longest caption "Delta" (5 chars) + gap */
 #define OV_SOC_LOW_PCT      20
 #define OV_SOC_MID_PCT      40
 
@@ -19,20 +21,16 @@ static lv_obj_t *s_chg, *s_dsg, *s_bal;
 static lv_obj_t *s_temp_mos, *s_temp_bat[BMS_BAT_TEMP_SENSORS];
 static lv_obj_t *s_delta, *s_cycles, *s_soh, *s_capacity;
 
-static lv_obj_t *add_pair(lv_obj_t *row, const char *name)
+/* Caption and value in a fixed grid cell; the value is created right after its caption. */
+static lv_obj_t *add_cell(lv_obj_t *tile, int row, int col, const char *name)
 {
-    lv_obj_t *label = ui_label(row, NULL, UI_COLOR_HEADING);
-    lv_label_set_text(label, name);
-    return ui_label(row, NULL, UI_COLOR_TEXT);
-}
-
-static lv_obj_t *add_row_at(lv_obj_t *tile, int index)
-{
-    lv_obj_t *row = ui_row(tile);
-    lv_obj_set_pos(row, UI_PAD, OV_ROW_Y0 + index * OV_ROW_STEP);
-    /* MOS + T1..T5 is 31 characters (248 px); this gap keeps the row within 312 px. */
-    lv_obj_set_style_pad_column(row, OV_ROW_GAP, 0);
-    return row;
+    int x = UI_PAD + col * OV_COL_STEP, y = OV_ROW_Y0 + row * OV_ROW_STEP;
+    lv_obj_t *caption = ui_label(tile, NULL, UI_COLOR_HEADING);
+    lv_label_set_text(caption, name);
+    lv_obj_set_pos(caption, x, y);
+    lv_obj_t *value = ui_label(tile, NULL, UI_COLOR_TEXT);
+    lv_obj_set_pos(value, x + OV_VALUE_DX, y);
+    return value;
 }
 
 void ui_overview_create(lv_obj_t *tile)
@@ -64,26 +62,28 @@ void ui_overview_create(lv_obj_t *tile)
     s_power = ui_label(tile, NULL, UI_COLOR_TEXT);
     lv_obj_set_pos(s_power, OV_RIGHT_X, 96);
 
-    lv_obj_t *row = add_row_at(tile, 0);
-    s_chg = add_pair(row, "CHG");
-    s_dsg = add_pair(row, "DSG");
-    s_bal = add_pair(row, "BAL");
+    s_chg = add_cell(tile, 0, 0, "CHG");
+    s_dsg = add_cell(tile, 0, 1, "DSG");
+    s_bal = add_cell(tile, 0, 2, "BAL");
 
-    row = add_row_at(tile, 1);
-    s_temp_mos = add_pair(row, "MOS");
+    /* MOS and T1..T5 fill rows 1-2, three per row. */
+    s_temp_mos = add_cell(tile, 1, 0, "MOS");
     for (int i = 0; i < BMS_BAT_TEMP_SENSORS; ++i) {
         char name[4];
         snprintf(name, sizeof(name), "T%d", i + 1);
-        s_temp_bat[i] = add_pair(row, name);
+        s_temp_bat[i] = add_cell(tile, 1 + (i + 1) / OV_COLS, (i + 1) % OV_COLS, name);
     }
 
-    row = add_row_at(tile, 2);
-    s_delta = add_pair(row, "Delta");
-    s_cycles = add_pair(row, "Cyc");
-    s_soh = add_pair(row, "SOH");
+    s_delta = add_cell(tile, 3, 0, "Delta");
+    s_cycles = add_cell(tile, 3, 1, "Cyc");
+    s_soh = add_cell(tile, 3, 2, "SOH");
 
-    row = add_row_at(tile, 3);
-    s_capacity = add_pair(row, "Cap");
+    lv_obj_t *row = ui_row(tile);
+    lv_obj_set_pos(row, UI_PAD, OV_ROW_Y0 + 4 * OV_ROW_STEP);
+    lv_obj_set_style_pad_column(row, 5, 0);
+    lv_obj_t *caption = ui_label(row, NULL, UI_COLOR_HEADING);
+    lv_label_set_text(caption, "Cap");
+    s_capacity = ui_label(row, NULL, UI_COLOR_TEXT);
 }
 
 static void set_mos(lv_obj_t *label, bool on, bool stale)

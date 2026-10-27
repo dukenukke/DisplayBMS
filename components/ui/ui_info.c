@@ -41,6 +41,16 @@ static void slider_cb(lv_event_t *e)
     backlight_set_user_pct(lv_slider_get_value(slider), lv_event_get_code(e) == LV_EVENT_RELEASED);
 }
 
+/*
+ * A horizontal slider still chains vertical drags to the scrollable tile, so the
+ * page scrolls under the finger. Drop the chaining for this press; LVGL's slider
+ * sets SCROLL_CHAIN_VER again on release, which restores vertical scrolling.
+ */
+static void slider_pressed_cb(lv_event_t *e)
+{
+    lv_obj_remove_flag(lv_event_get_target_obj(e), LV_OBJ_FLAG_SCROLL_CHAIN_VER);
+}
+
 static void recalibrate_cb(lv_event_t *e)
 {
     (void)e;
@@ -74,6 +84,7 @@ void ui_info_create(lv_obj_t *tile)
     lv_slider_set_value(slider, backlight_get_user_pct(), LV_ANIM_OFF);
     lv_obj_add_event_cb(slider, slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(slider, slider_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_add_event_cb(slider, slider_pressed_cb, LV_EVENT_PRESSED, NULL);
     lines(tile, L_LIGHT, L_LIGHT);
 
     lv_obj_t *btn = lv_button_create(tile);

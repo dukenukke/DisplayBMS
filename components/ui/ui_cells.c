@@ -10,13 +10,27 @@
 #define CELL_BORDER     2
 #define CELLS_TEXT_Y    (CELLS_COLS * (CELL_H + CELL_GAP) + 6)
 #define CELLS_LINE_H    20
+#define CELLS_TEXT_COLS 3
+#define CELLS_COL_STEP  ((320 - 2 * UI_PAD) / CELLS_TEXT_COLS)
+#define CELLS_VALUE_DX  32      /* 3-char caption + gap; values up to 8 chars fit the column */
 
 typedef struct {
     lv_obj_t *box, *index, *balance, *value;
 } cell_widgets_t;
 
 static cell_widgets_t s_cells[CELLS_SHOWN];
-static lv_obj_t *s_line1, *s_line2;
+static lv_obj_t *s_delta, *s_avg, *s_bal, *s_min, *s_max;
+
+static lv_obj_t *add_cell(lv_obj_t *tile, int row, int col, const char *name)
+{
+    int x = UI_PAD + col * CELLS_COL_STEP, y = CELLS_TEXT_Y + row * CELLS_LINE_H;
+    lv_obj_t *caption = ui_label(tile, NULL, UI_COLOR_HEADING);
+    lv_label_set_text(caption, name);
+    lv_obj_set_pos(caption, x, y);
+    lv_obj_t *value = ui_label(tile, NULL, UI_COLOR_TEXT);
+    lv_obj_set_pos(value, x + CELLS_VALUE_DX, y);
+    return value;
+}
 
 void ui_cells_create(lv_obj_t *tile)
 {
@@ -47,10 +61,11 @@ void ui_cells_create(lv_obj_t *tile)
         lv_label_set_text(c->value, "-.---");
         lv_obj_align(c->value, LV_ALIGN_BOTTOM_MID, 0, -3);
     }
-    s_line1 = ui_label(tile, NULL, UI_COLOR_TEXT);
-    lv_obj_set_pos(s_line1, UI_PAD, CELLS_TEXT_Y);
-    s_line2 = ui_label(tile, NULL, UI_COLOR_TEXT);
-    lv_obj_set_pos(s_line2, UI_PAD, CELLS_TEXT_Y + CELLS_LINE_H);
+    s_delta = add_cell(tile, 0, 0, "dV");
+    s_avg = add_cell(tile, 0, 1, "Avg");
+    s_bal = add_cell(tile, 0, 2, "Bal");
+    s_min = add_cell(tile, 1, 0, "Min");
+    s_max = add_cell(tile, 1, 1, "Max");
 }
 
 static void set_border(lv_obj_t *box, lv_color_t color)
@@ -102,21 +117,27 @@ void ui_cells_update(const bms_data_t *d, bool stale)
         else lv_obj_add_flag(c->balance, LV_OBJ_FLAG_HIDDEN);
     }
 
-    char avg[8];
-    ui_fmt_cell(avg, sizeof(avg), l->cell_avg_mv);
+    char buf[12];
+    ui_label_printf(s_delta, "%umV", l->cell_delta_mv);
+    ui_set_text_color(s_delta, ui_delta_color(l->cell_delta_mv, stale));
+    ui_fmt_cell(buf, sizeof(buf), l->cell_avg_mv);
+    ui_label_printf(s_avg, "%sV", buf);
+    ui_set_text_color(s_avg, ui_live(UI_COLOR_TEXT, stale));
     int bal_ma = l->balance_ma;
     int bal_abs = bal_ma < 0 ? -bal_ma : bal_ma;
-    ui_label_printf(s_line1, "Delta %umV  Avg %sV  Bal %s%d.%02dA", l->cell_delta_mv, avg,
-                    bal_ma < 0 ? "-" : "", bal_abs / 1000, bal_abs % 1000 / 10);
-    ui_set_text_color(s_line1, ui_delta_color(l->cell_delta_mv, stale));
+    ui_label_printf(s_bal, "%s%d.%02dA", bal_ma < 0 ? "-" : "", bal_abs / 1000, bal_abs % 1000 / 10);
+    ui_set_text_color(s_bal, ui_live(UI_COLOR_TEXT, stale));
 
+    /* "07 3.280": index and voltage, coloured like the cell borders. */
     if (min_i >= 0 && max_i >= 0) {
-        char vmin[8], vmax[8];
-        ui_fmt_cell(vmin, sizeof(vmin), l->cell_mv[min_i]);
-        ui_fmt_cell(vmax, sizeof(vmax), l->cell_mv[max_i]);
-        ui_label_printf(s_line2, "Min %02d %s   Max %02d %s", min_i + 1, vmin, max_i + 1, vmax);
+        ui_fmt_cell(buf, sizeof(buf), l->cell_mv[min_i]);
+        ui_label_printf(s_min, "%02d %s", min_i + 1, buf);
+        ui_fmt_cell(buf, sizeof(buf), l->cell_mv[max_i]);
+        ui_label_printf(s_max, "%02d %s", max_i + 1, buf);
     } else {
-        ui_label_set_text(s_line2, "No valid cell voltages");
+        ui_label_set_text(s_min, "--");
+        ui_label_set_text(s_max, "--");
     }
-    ui_set_text_color(s_line2, ui_live(UI_COLOR_TEXT, stale));
+    ui_set_text_color(s_min, ui_live(UI_COLOR_MIN_CELL, stale));
+    ui_set_text_color(s_max, ui_live(UI_COLOR_MAX_CELL, stale));
 }
