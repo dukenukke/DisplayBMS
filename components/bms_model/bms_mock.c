@@ -17,6 +17,7 @@
 #define MOCK_TASK_PRIORITY      5
 #define MOCK_TASK_CORE          0
 
+#define MOCK_BAT_SENSORS        4       /* TempBat1..4: one per 4 cells */
 #define MOCK_CELLS              16
 #define MOCK_CURRENT_PERIOD_S   600     /* charge/discharge cycle */
 #define MOCK_CURRENT_PEAK_MA    40000
@@ -95,10 +96,14 @@ static void fill_live(bms_live_t *live, uint32_t t)
     uint32_t abs_ma = live->current_ma < 0 ? -live->current_ma : live->current_ma;
     live->power_mw = (uint32_t)((uint64_t)live->pack_mv * abs_ma / 1000);
 
-    live->temp_present_mask = BMS_TEMP_PRESENT_MOS | BMS_TEMP_PRESENT_BAT(0) | BMS_TEMP_PRESENT_BAT(1);
+    /* MOS plus TempBat1..4, as on the target pack. */
+    live->temp_present_mask = BMS_TEMP_PRESENT_MOS;
+    static const int16_t bat_base_dc[MOCK_BAT_SENSORS] = {245, 252, 249, 238};
+    for (int i = 0; i < MOCK_BAT_SENSORS; ++i) {
+        live->temp_present_mask |= BMS_TEMP_PRESENT_BAT(i);
+        live->temp_bat_dc[i] = (int16_t)(bat_base_dc[i] + noise(2));
+    }
     live->temp_mos_dc = (int16_t)(280 + abs_ma / 500 + noise(3));
-    live->temp_bat_dc[0] = (int16_t)(245 + noise(2));
-    live->temp_bat_dc[1] = (int16_t)(252 + noise(2));
 
     bool balancing = live->cell_delta_mv >= 10;
     live->balance_state = balancing ? (live->current_ma >= 0 ? BMS_BALANCE_CHARGE : BMS_BALANCE_DISCHARGE)
