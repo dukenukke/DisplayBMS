@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "esp_err.h"
 
-#define BMS_BAUD_RATE_COUNT 8
+#define BMS_BAUD_RATE_COUNT 11
 #define BMS_RAW_CAPTURE     256     /* last bytes kept for the raw view */
 
 /** Baud rates offered for the link, ascending. */

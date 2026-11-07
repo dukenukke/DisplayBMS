@@ -34,7 +34,8 @@
 
 static const char *TAG = "bms_uart";
 
-const uint32_t bms_baud_rates[BMS_BAUD_RATE_COUNT] = {9600, 14400, 19200, 28800, 38400, 57600, 76800, 115200};
+const uint32_t bms_baud_rates[BMS_BAUD_RATE_COUNT] = {1200,  2400,  4800,  9600,  14400, 19200,
+                                                        28800, 38400, 57600, 76800, 115200};
 
 static QueueHandle_t s_events;
 static bms_link_stats_t s_link;     /* owned by the RX task */
