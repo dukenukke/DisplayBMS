@@ -15,7 +15,7 @@ static const char *TAG = "ui_info";
 enum {
     L_MODEL, L_VERSION, L_UPTIME,
     L_CAPACITY, L_OVP, L_UVP, L_BALANCE, L_CURRENT, L_TEMP_HIGH, L_TEMP_LOW, L_SWITCHES,
-    L_SOURCE, L_FRAMES, L_ERRORS, L_LAST_FRAME,
+    L_SOURCE, L_FRAMES, L_ERRORS, L_LINE, L_LAST_FRAME,
     L_LIGHT,
     L_COUNT
 };
@@ -152,6 +152,16 @@ void ui_info_update(const bms_data_t *d, bool stale)
                     (unsigned long)link->checksum_errors, (unsigned long)link->unknown_frames,
                     (unsigned long)link->resyncs);
     ui_set_text_color(s_lines[L_ERRORS], link->checksum_errors ? UI_COLOR_WARN : UI_COLOR_TEXT);
+    /* Line errors usually mean swapped A/B or a wrong baud rate. */
+    if (link->bytes_rx) {
+        int64_t rx_age_s = (esp_timer_get_time() - link->last_rx_us) / 1000000;
+        ui_label_printf(s_lines[L_LINE], "UART err %lu  Ovf %lu  RX %llds ago", (unsigned long)link->line_errors,
+                        (unsigned long)link->overruns, (long long)rx_age_s);
+    } else {
+        ui_label_printf(s_lines[L_LINE], "UART err %lu  Ovf %lu  no RX yet", (unsigned long)link->line_errors,
+                        (unsigned long)link->overruns);
+    }
+    ui_set_text_color(s_lines[L_LINE], link->line_errors || link->overruns ? UI_COLOR_WARN : UI_COLOR_TEXT);
     if (link->frames_ok) {
         int64_t age_s = (esp_timer_get_time() - link->last_frame_us) / 1000000;
         ui_label_printf(s_lines[L_LAST_FRAME], "Last frame %llds ago", (long long)age_s);

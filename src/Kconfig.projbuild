@@ -90,9 +90,10 @@ menu "DisplayBMS"
 
         choice DBMS_DATA_SOURCE
             prompt "Data source"
-            default DBMS_SOURCE_MOCK
+            default DBMS_SOURCE_BMS
             help
-                Mock is the default until the frame parser (stage 5) is done.
+                The mock generator drives the UI without a BMS (branch
+                "simulating" keeps it as the default).
 
             config DBMS_SOURCE_BMS
                 bool "Real BMS over UART"
@@ -135,8 +136,9 @@ menu "DisplayBMS"
             default 27
             help
                 CYD connector CN1: 3.3V, GPIO27, GPIO22, GND. Held low for the
-                whole run, which keeps the transceiver in receive mode with its
-                driver disabled.
+                whole run, which keeps the transceiver (SN65HVD1781) in receive
+                mode with its driver disabled. Add a 10k pull-down so the driver
+                stays off during reset and boot, before the firmware sets the pin.
 
         config DBMS_BMS_BAUD
             int "Baud rate"
@@ -157,9 +159,13 @@ menu "DisplayBMS"
 
         config DBMS_SNIFFER
             bool "Sniffer: hex-dump raw UART traffic to the log"
-            default n
+            depends on DBMS_SOURCE_BMS
+            default y
             help
-                BLE PIN and password bytes of the device-info frame are masked.
+                Dumps every RX burst and a summary per JK frame (type, checksum,
+                interval). BLE PIN and password bytes of the device-info frame
+                are masked. On while the link is being brought up; to be turned
+                off by default in stage 6.
 
     endmenu
 

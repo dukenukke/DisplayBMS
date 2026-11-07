@@ -112,6 +112,9 @@ typedef struct {
     uint32_t unknown_frames;
     uint32_t resyncs;                       /* bytes skipped while hunting for a header */
     uint32_t bytes_rx;
+    uint32_t line_errors;                   /* UART framing/parity errors and breaks */
+    uint32_t overruns;                      /* RX FIFO or ring buffer overflows (input flushed) */
+    int64_t last_rx_us;                     /* any byte, valid frame or not */
     int64_t last_frame_us;
 } bms_link_stats_t;
 
