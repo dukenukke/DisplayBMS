@@ -19,6 +19,7 @@ static const char *TAG = "ui_raw";
 static lv_obj_t *s_dropdown, *s_pause, *s_stats1, *s_stats2, *s_hex;
 static bms_raw_view_t s_view;      /* static: too large for the LVGL task stack frame */
 static char s_hex_text[RAW_LINES * RAW_LINE_CHARS + 1];
+static bool s_link_seen;           /* controls synced with the running link */
 
 static void baud_cb(lv_event_t *e)
 {
@@ -73,15 +74,17 @@ void ui_raw_create(lv_obj_t *tile)
     lv_obj_set_style_text_line_space(s_hex, 1, 0);
     lv_obj_set_pos(s_hex, UI_PAD, RAW_HEX_Y);
 
-    if (!bms_transport_running()) {
-        lv_obj_add_state(s_dropdown, LV_STATE_DISABLED);
-        lv_label_set_text(s_hex, "UART link not running\n(data source is not the BMS)");
-        return;
-    }
-    bms_transport_raw_view(&s_view);
+    /* The UI is created before the link starts: ui_raw_update() enables the controls. */
+    lv_obj_add_state(s_dropdown, LV_STATE_DISABLED);
+    lv_label_set_text(s_hex, "UART link not running\n(data source is not the BMS)");
+}
+
+static void sync_controls(const bms_raw_view_t *v)
+{
     for (int i = 0; i < BMS_BAUD_RATE_COUNT; ++i) {
-        if (bms_baud_rates[i] == s_view.baud) lv_dropdown_set_selected(s_dropdown, i);
+        if (bms_baud_rates[i] == v->baud) lv_dropdown_set_selected(s_dropdown, i);
     }
+    lv_obj_remove_state(s_dropdown, LV_STATE_DISABLED);
 }
 
 /* Last RAW_LINES lines, aligned to RAW_PER_LINE on the byte count since the baud change. */
@@ -127,6 +130,10 @@ void ui_raw_update(const bms_data_t *d, bool stale)
     (void)stale;
     if (!bms_transport_running()) return;
     bms_transport_raw_view(&s_view);
+    if (!s_link_seen) {
+        sync_controls(&s_view);
+        s_link_seen = true;
+    }
 
     ui_label_printf(s_stats1, "RX %lu B   line errors %lu", (unsigned long)s_view.total,
                     (unsigned long)s_view.line_errors);
