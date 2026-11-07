@@ -140,6 +140,15 @@ menu "DisplayBMS"
                 mode with its driver disabled. Add a 10k pull-down so the driver
                 stays off during reset and boot, before the firmware sets the pin.
 
+        config DBMS_BMS_TX_GPIO
+            int "TX GPIO (to transceiver DI), reserved"
+            range 0 33
+            default 22
+            help
+                CYD connector P3, next to RX. Wired to DI so the hardware is ready,
+                but the UART TX signal is NOT routed to it: the pin is a plain
+                output held high (UART idle level). The firmware never transmits.
+
         config DBMS_BMS_BAUD
             int "Baud rate"
             default 115200

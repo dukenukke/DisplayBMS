@@ -101,6 +101,13 @@ esp_err_t bms_transport_init(void)
     ESP_RETURN_ON_ERROR(gpio_config(&rts_cfg), TAG, "RTS gpio");
     ESP_RETURN_ON_ERROR(gpio_set_level(rts, 0), TAG, "RTS level");
 
+    /* DI is wired but reserved: a plain GPIO at the UART idle level, no UART signal. */
+    const gpio_num_t tx = CONFIG_DBMS_BMS_TX_GPIO;
+    gpio_set_level(tx, 1);
+    const gpio_config_t tx_cfg = {.pin_bit_mask = 1ULL << tx, .mode = GPIO_MODE_OUTPUT};
+    ESP_RETURN_ON_ERROR(gpio_config(&tx_cfg), TAG, "TX gpio");
+    ESP_RETURN_ON_ERROR(gpio_set_level(tx, 1), TAG, "TX level");
+
     const uart_config_t cfg = {
         .baud_rate = CONFIG_DBMS_BMS_BAUD,
         .data_bits = UART_DATA_8_BITS,
