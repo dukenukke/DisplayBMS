@@ -5,11 +5,11 @@
 #include "esp_timer.h"
 #include "sdkconfig.h"
 
-#define UI_PAGES            4
+#define UI_PAGES            5
 #define UI_DOT_SIZE         6
 #define UI_DOT_GAP          8
 
-static const char *const s_titles[UI_PAGES] = {"OVERVIEW", "CELLS", "ALARMS", "INFO"};
+static const char *const s_titles[UI_PAGES] = {"OVERVIEW", "CELLS", "ALARMS", "INFO", "RAW"};
 
 static lv_obj_t *s_tileview;
 static lv_obj_t *s_title, *s_link;
@@ -61,6 +61,7 @@ static void refresh_cb(lv_timer_t *timer)
     ui_cells_update(&s_snapshot, stale);
     ui_alarms_update(&s_snapshot, stale);
     ui_info_update(&s_snapshot, stale);
+    ui_raw_update(&s_snapshot, stale);
 }
 
 static void create_status_bar(lv_obj_t *scr)
@@ -116,7 +117,7 @@ esp_err_t ui_init(lv_display_t *disp)
     lv_obj_add_event_cb(s_tileview, page_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
     static void (*const create[UI_PAGES])(lv_obj_t *) = {
-        ui_overview_create, ui_cells_create, ui_alarms_create, ui_info_create,
+        ui_overview_create, ui_cells_create, ui_alarms_create, ui_info_create, ui_raw_create,
     };
     for (int i = 0; i < UI_PAGES; ++i) {
         lv_dir_t dir = (i > 0 ? LV_DIR_LEFT : 0) | (i < UI_PAGES - 1 ? LV_DIR_RIGHT : 0);

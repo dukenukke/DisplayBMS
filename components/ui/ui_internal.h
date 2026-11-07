@@ -64,3 +64,5 @@ void ui_alarms_create(lv_obj_t *tile);
 void ui_alarms_update(const bms_data_t *d, bool stale);
 void ui_info_create(lv_obj_t *tile);
 void ui_info_update(const bms_data_t *d, bool stale);
+void ui_raw_create(lv_obj_t *tile);
+void ui_raw_update(const bms_data_t *d, bool stale);
